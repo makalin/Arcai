@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcai - Archaeological Site Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 2rem auto;
+            padding: 2rem;
+            max-width: 800px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: #e3f2fd;
+        }
+        
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background: #e8f5e8;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .confidence-slider {
+            margin: 2rem 0;
+        }
+        
+        .confidence-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .btn-detect {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-detect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-detect:disabled {
+            background: #bdc3c7;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+            margin-top: 2rem;
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .features {
+            margin-top: 3rem;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-container">
+            <div class="header">
+                <h1><i class="fas fa-search"></i> Arcai</h1>
+                <p>AI-Powered Archaeological Site Detection</p>
+                <p class="text-muted">Upload satellite imagery to detect potential archaeological sites</p>
+            </div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h4>Upload Satellite Image</h4>
+                <p class="text-muted">Drag and drop your image here or click to browse</p>
+                <p class="text-muted small">Supported formats: PNG, JPG, JPEG, TIF, TIFF (max 16MB)</p>
+                <input type="file" id="fileInput" class="file-input" accept=".png,.jpg,.jpeg,.tif,.tiff">
+            </div>
+            
+            <div class="confidence-slider">
+                <label for="confidenceSlider" class="form-label">
+                    <i class="fas fa-sliders-h"></i> Confidence Threshold
+                </label>
+                <div class="d-flex align-items-center">
+                    <input type="range" class="form-range flex-grow-1 me-3" 
+                           id="confidenceSlider" min="0" max="1" step="0.1" value="0.5">
+                    <span class="confidence-value" id="confidenceValue">50%</span>
+                </div>
+                <div class="form-text">Higher values require stronger evidence for detection</div>
+            </div>
+            
+            <div class="text-center">
+                <button class="btn btn-detect" id="detectBtn" disabled>
+                    <i class="fas fa-search"></i> Detect Archaeological Sites
+                </button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <h5>Analyzing satellite imagery...</h5>
+                <p class="text-muted">This may take a few moments</p>
+            </div>
+            
+            <div class="results" id="results">
+                <div class="result-card">
+                    <h4><i class="fas fa-chart-bar"></i> Detection Results</h4>
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+            
+            <div class="features">
+                <h3 class="text-center mb-4">Features</h3>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h5>AI-Powered</h5>
+                            <p class="text-muted">Advanced deep learning models trained on archaeological data</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-map-marked-alt"></i>
+                            </div>
+                            <h5>Interactive Maps</h5>
+                            <p class="text-muted">Visualize results with interactive maps and detailed reports</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-download"></i>
+                            </div>
+                            <h5>Export Results</h5>
+                            <p class="text-muted">Download results in multiple formats for further analysis</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // DOM elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const detectBtn = document.getElementById('detectBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const resultContent = document.getElementById('resultContent');
+        const confidenceSlider = document.getElementById('confidenceSlider');
+        const confidenceValue = document.getElementById('confidenceValue');
+        
+        // File handling
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        // Confidence slider
+        confidenceSlider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            confidenceValue.textContent = Math.round(value * 100) + '%';
+        });
+        
+        // File handling function
+        function handleFile(file) {
+            // Validate file type
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/tiff'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please select a valid image file (PNG, JPG, JPEG, TIF, TIFF)');
+                return;
+            }
+            
+            // Validate file size (16MB)
+            if (file.size > 16 * 1024 * 1024) {
+                alert('File size must be less than 16MB');
+                return;
+            }
+            
+            // Update UI
+            uploadArea.innerHTML = `
+                <div class="upload-icon">
+                    <i class="fas fa-check-circle text-success"></i>
+                </div>
+                <h4>File Selected</h4>
+                <p class="text-muted">${file.name}</p>
+                <p class="text-muted small">Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            `;
+            
+            detectBtn.disabled = false;
+        }
+        
+        // Detection function
+        detectBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            // Show loading
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            detectBtn.disabled = true;
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('confidence', confidenceSlider.value);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResults(data);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+                detectBtn.disabled = false;
+            }
+        });
+        
+        // Show results
+        function showResults(data) {
+            const results = data.results;
+            const outputId = data.output_id;
+            
+            resultContent.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle"></i> Summary</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Sites Detected:</strong> ${results.total_sites}</li>
+                            <li><strong>Confidence Threshold:</strong> ${Math.round(confidenceSlider.value * 100)}%</li>
+                            <li><strong>Analysis Time:</strong> ${new Date(results.timestamp).toLocaleString()}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-download"></i> Downloads</h6>
+                        <div class="d-grid gap-2">
+                            <a href="/download/${outputId}/visualization" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-image"></i> Visualization
+                            </a>
+                            <a href="/download/${outputId}/interactive_map" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-map"></i> Interactive Map
+                            </a>
+                            <a href="/download/${outputId}/confidence_plot" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-chart-bar"></i> Confidence Plot
+                            </a>
+                            <a href="/download/${outputId}/json_results" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-code"></i> JSON Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                ${results.detections.length > 0 ? `
+                <div class="mt-3">
+                    <h6><i class="fas fa-map-marker-alt"></i> Detected Sites</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Site ID</th>
+                                    <th>Confidence</th>
+                                    <th>Bounding Box</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${results.detections.map(detection => `
+                                    <tr>
+                                        <td>${detection.box_id}</td>
+                                        <td><span class="badge bg-success">${Math.round(detection.confidence * 100)}%</span></td>
+                                        <td>${detection.bbox.join(', ')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ` : '<div class="mt-3"><p class="text-muted">No archaeological sites detected with the current confidence threshold.</p></div>'}
+            `;
+            
+            results.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 
